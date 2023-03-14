@@ -9,7 +9,10 @@ const refs = {
   searchInput: document.querySelector('input[name="searchQuery"]'),
   searchBtn: document.querySelector('button'),
   gallery: document.querySelector('.gallery'),
+  loadMoreBtn: document.querySelector('.load-more'),
 };
+
+let isAlertVisible = false;
 
 const onFormSubmit = event => {
   event.preventDefault();
@@ -31,7 +34,13 @@ const onFormSubmit = event => {
       //   console.log(res.data.hits);
       if (res.data.hits.length === 0) {
         return Notiflix.Notify.info(
-          'Sorry, there are no images matching your search query. Please try again!'
+          'Sorry, there are no images matching your search query. Please try again!',
+          {
+            width: '320px',
+            timeout: 4000,
+            distance: '20px',
+            fontSize: '14px',
+          }
         );
       }
       renderMarkUp(res.data.hits);
@@ -43,29 +52,37 @@ refs.form.addEventListener('submit', onFormSubmit);
 function renderMarkUp(array) {
   const markUp = array
     .map(item => {
-      return `<div class="photo-card">
-			<img src="${item.webformatURL}" alt="${item.tags}" loading="lazy"/>
+      return `<a class="gallery__link" href="${item.largeImageURL}"><div class="photo-card">
+			<img class="gallery__image" src="${item.webformatURL}" alt="${item.tags}"  loading="lazy"/>
 			<div class="info">
 		  <p class="info-item">
-			<b>Likes: </b>${item.likes}
+			<b>Likes</b><span class="likes">${item.likes}</span>
 		  </p>
 		  <p class="info-item">
-			<b>Views: </b>${item.views}
+			<b>Views</b><span class="views">${item.views}</span>
 		  </p>
 		  <p class="info-item">
-			<b>Comments: </b>${item.comments}
+			<b>Comments</b><span class="comments">${item.comments}</span>
 		  </p>
 		  <p class="info-item">
-			<b>Downloads: </b>${item.downloads}
+			<b>Downloads</b><span class="downloads">${item.downloads}</span>
 		  </p>
 		</div>
-	  </div>`;
+	  </div></a>`;
     })
     .join('');
-  //   refs.gallery.insertAdjacentHTML('beforeend', markUp);
-  refs.gallery.innerHTML = markUp;
+  refs.gallery.insertAdjacentHTML('beforeend', markUp);
+  //   refs.gallery.innerHTML = markUp;
+  lightbox.refresh();
 }
 
-// console.log(refs.searchBtn);
-// console.log(refs.form.elements);
-//
+// initializing of SimpleLightbox instance
+const lightbox = new SimpleLightbox('.gallery a', {
+  // get the caption from given attribute
+  captionsData: 'alt',
+  // adds a delay before the caption shows
+  captionDelay: 250,
+});
+
+// loadMoreBtn.addEventListener('click');
+// function onLoadMoreBtnClick() {}
