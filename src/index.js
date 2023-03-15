@@ -4,6 +4,7 @@ import Notiflix from 'notiflix';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 
+// глобальні змінні
 const refs = {
   form: document.querySelector('#search-form'),
   searchInput: document.querySelector('input[name="searchQuery"]'),
@@ -12,77 +13,108 @@ const refs = {
   loadMoreBtn: document.querySelector('.load-more'),
 };
 
-let isAlertVisible = false;
+let currentPage = 1;
+refs.loadMoreBtn.style.display = 'none';
 
+// обробник сабміту форми
 const onFormSubmit = event => {
   event.preventDefault();
+
+  // при кожному новому запиті ощищуємо розмітку і початкове значення page = 1 для пагінації
   refs.gallery.innerHTML = '';
+  currentPage = 1;
 
   const inputValue = refs.searchInput.value.trim();
-  if (inputValue === '') {
-    return Notiflix.Notify.info('Enter no empty string!');
-  }
-  console.log(inputValue);
 
-  axios
-    .get(
-      `https://pixabay.com/api/?key=34262951-eeadf584ea4d5f3050a02718a&q=${inputValue}&image_type=photo&orientation=horizontal&safesearch=true`
-    )
-    .then(res => {
-      //   console.log(res.data.hits);
-      //   return res.data;
-      //   console.log(res.data.hits);
-      if (res.data.hits.length === 0) {
-        return Notiflix.Notify.info(
-          'Sorry, there are no images matching your search query. Please try again!',
-          {
-            width: '320px',
-            timeout: 4000,
-            distance: '20px',
-            fontSize: '14px',
-          }
-        );
-      }
-      renderMarkUp(res.data.hits);
-    });
+  // перевірка на
+  if (inputValue === '') {
+    refs.loadMoreBtn.style.display = 'none';
+    return Notiflix.Notify.info('Enter a search name!');
+  }
+
+  getImagesQuery(inputValue, currentPage).then(res => {
+    if (res.data.hits.length === 0) {
+      return Notiflix.Notify.info(
+        'Sorry, there are no images matching your search query. Please try again!'
+      );
+    }
+
+    // показуємо розмітку сторінки по даних запиту
+    renderMarkUp(res.data.hits);
+    // виводимо повідомлення скільки всього знайшли зображень
+    Notiflix.Notify.info(`Hooray! We found ${res.data.total} images.`);
+
+    // показуємо кнопку LoadMore
+    refs.loadMoreBtn.style.display = 'block';
+  });
 };
 
+// прослуховування події form submit
 refs.form.addEventListener('submit', onFormSubmit);
 
+// функція запиту даних на Pixabay API
+function getImagesQuery(value, currentPage) {
+  const url = `https://pixabay.com/api/`;
+  const key = `?key=34262951-eeadf584ea4d5f3050a02718a`;
+  const params = `&q=${value}&image_type=photo&orientation=horizontal&safesearch=true&per_page=40&page=${currentPage}`;
+
+  return axios.get(url + key + params);
+}
+
+// функція розмітки сторінки
 function renderMarkUp(array) {
   const markUp = array
-    .map(item => {
-      return `<a class="gallery__link" href="${item.largeImageURL}"><div class="photo-card">
-			<img class="gallery__image" src="${item.webformatURL}" alt="${item.tags}"  loading="lazy"/>
-			<div class="info">
-		  <p class="info-item">
-			<b>Likes</b><span class="likes">${item.likes}</span>
-		  </p>
-		  <p class="info-item">
-			<b>Views</b><span class="views">${item.views}</span>
-		  </p>
-		  <p class="info-item">
-			<b>Comments</b><span class="comments">${item.comments}</span>
-		  </p>
-		  <p class="info-item">
-			<b>Downloads</b><span class="downloads">${item.downloads}</span>
-		  </p>
-		</div>
-	  </div></a>`;
-    })
+    .map(
+      ({
+        largeImageURL,
+        webformatURL,
+        tags,
+        likes,
+        views,
+        comments,
+        downloads,
+      }) => {
+        return `<a class="gallery__link" href="${largeImageURL}">
+                <div class="photo-card">
+			            <img class="gallery__image" src="${webformatURL}" alt="${tags}"  loading="lazy"/>
+			              <div class="info">
+		                  <p class="info-item">
+			                  <b>Likes</b><span class="likes">${likes}</span>
+		                  </p>
+		                  <p class="info-item">
+			                  <b>Views</b><span class="views">${views}</span>
+		                  </p>
+		                  <p class="info-item">
+			                  <b>Comments</b><span class="comments">${comments}</span>
+		                  </p>
+		                  <p class="info-item">
+			                  <b>Downloads</b><span class="downloads">${downloads}</span>
+		                  </p>
+		                </div>
+	              </div>
+              </a>`;
+      }
+    )
     .join('');
   refs.gallery.insertAdjacentHTML('beforeend', markUp);
-  //   refs.gallery.innerHTML = markUp;
   lightbox.refresh();
 }
 
-// initializing of SimpleLightbox instance
+// ініціалізація екземпляру класу бібліотеки SimpleLightbox
 const lightbox = new SimpleLightbox('.gallery a', {
-  // get the caption from given attribute
   captionsData: 'alt',
   // adds a delay before the caption shows
   captionDelay: 250,
 });
 
-// loadMoreBtn.addEventListener('click');
-// function onLoadMoreBtnClick() {}
+// прослуховувач події click LoadMore
+refs.loadMoreBtn.addEventListener('click', onLoadMore);
+function onLoadMore() {
+  // З кожним наступним запитом, номер сторінки необхідно збільшити на 1
+  currentPage += 1;
+
+  const value1 = refs.searchInput.value.trim();
+  getImagesQuery(value1, currentPage).then(res => {
+    renderMarkUp(res.data.hits);
+  });
+}
