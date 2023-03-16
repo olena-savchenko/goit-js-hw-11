@@ -1,11 +1,9 @@
 import './styles.css';
-import axios from 'axios';
+import { getImages } from './pixabay-api';
 import Notiflix from 'notiflix';
-import debounce from 'lodash.debounce';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 
-// глобальні змінні
 const refs = {
   form: document.querySelector('#search-form'),
   searchInput: document.querySelector('input[name="searchQuery"]'),
@@ -14,53 +12,58 @@ const refs = {
   loadMoreBtn: document.querySelector('.load-more'),
 };
 
-let currentPage = 1;
-// refs.loadMoreBtn.style.display = 'none';
+refs.form.addEventListener('submit', onFormSubmit);
+refs.loadMoreBtn.addEventListener('click', onLoadMore);
 
-// обробник сабміту форми
-const onFormSubmit = event => {
+const showLoadMore = () => (refs.loadMoreBtn.style.display = 'block');
+const hideLoadMore = () => (refs.loadMoreBtn.style.display = 'none');
+
+let currentPage = 1;
+hideLoadMore();
+
+function onFormSubmit(event) {
   event.preventDefault();
 
-  // при кожному новому запиті ощищуємо розмітку і початкове значення page = 1 для пагінації
-  refs.gallery.innerHTML = '';
-  currentPage = 1;
+  clearGallery();
 
   const inputValue = refs.searchInput.value.trim();
 
-  // перевірка на
   if (inputValue === '') {
-    // refs.loadMoreBtn.style.display = 'none';
+    hideLoadMore();
     return Notiflix.Notify.info('Enter a search name!');
   }
 
-  getImagesQuery(inputValue, currentPage).then(res => {
-    if (res.data.hits.length === 0) {
+  viewImgGallery(inputValue, currentPage);
+}
+
+async function viewImgGallery(value, currentPage) {
+  try {
+    const response = await getImages(value, currentPage);
+
+    const length = response.data.hits.length; //довжина масива данних за один запит
+    const totalHits = response.data.total; // загальна кількість знайдених зображень
+
+    renderMarkUp(response.data.hits);
+    showLoadMore();
+
+    if (response.data.hits.length === 0) {
       return Notiflix.Notify.info(
         'Sorry, there are no images matching your search query. Please try again!'
       );
     }
+    if (currentPage === 1) {
+      // виводимо повідомлення скільки всього знайшли зображень
+      Notiflix.Notify.info(`Hooray! We found ${response.data.total} images.`);
+    }
 
-    // показуємо розмітку сторінки по даних запиту
-    renderMarkUp(res.data.hits);
-
-    // викликаю функцію плавного скрола
-    smoothScroll();
-
-    // виводимо повідомлення скільки всього знайшли зображень
-    Notiflix.Notify.info(`Hooray! We found ${res.data.total} images.`);
-  });
-};
-
-// прослуховування події form submit
-refs.form.addEventListener('submit', onFormSubmit);
-
-// функція запиту даних на Pixabay API
-function getImagesQuery(value, currentPage) {
-  const url = `https://pixabay.com/api/`;
-  const key = `?key=34262951-eeadf584ea4d5f3050a02718a`;
-  const params = `&q=${value}&image_type=photo&orientation=horizontal&safesearch=true&per_page=40&page=${currentPage}`;
-
-  return axios.get(url + key + params);
+    if (response.data.hits.length < 40) {
+      // renderMarkUp(response.data.hits);
+      hideLoadMore();
+      return Notiflix.Notify.info('Финиш');
+    }
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 // функція розмітки сторінки
@@ -102,15 +105,44 @@ function renderMarkUp(array) {
   lightbox.refresh();
 }
 
+// function viewMessage(length, totalHits, value) {
+//   if (value === '') {
+//     hideLoadMore();
+//     return Notiflix.Notify.info('Enter a search name!');
+//   }
+//   if (!totalHits) {
+//     hideLoadMore();
+//     return Notiflix.Notify.info(
+//       'Sorry, there are no images matching your search query. Please try again!'
+//     );
+//   }
+//   if (currentPage === 1) {
+//     // виводимо повідомлення скільки всього знайшли зображень
+//     return Notiflix.Notify.info(`Hooray! We found ${totalHits} images.`);
+//   }
+//   if (!length) {
+//     return Notiflix.Notify.info('Финиш');
+//   }
+// }
+
+function clearGallery() {
+  //У разі пошуку за новим ключовим словом, значення page потрібно повернути до початкового, оскільки буде пагінація по новій колекції зображень.
+  currentPage = 1;
+  // при кожному новому запиті ощищуємо розмітку і початкове значення page = 1 для пагінації
+  refs.gallery.innerHTML = '';
+}
+
 // ініціалізація екземпляру класу бібліотеки SimpleLightbox
-const lightbox = new SimpleLightbox('.gallery a', {
-  captionsData: 'alt',
-  // adds a delay before the caption shows
-  captionDelay: 250,
-});
+const lightbox = new SimpleLightbox('.gallery a');
+
+function onLoadMore() {
+  currentPage += 1;
+  const value = refs.searchInput.value.trim();
+  viewImgGallery(value, currentPage);
+}
 
 // обробник події плавного скрола
-document.addEventListener('scroll', smoothScroll);
+// document.addEventListener('scroll', smoothScroll);
 // функція плавного скрола
 function smoothScroll() {
   const { height: cardHeight } = document
@@ -124,17 +156,27 @@ function smoothScroll() {
 }
 
 // infinite scroll
-// window.addEventListener('scroll', infiniteScroll);
+// document.addEventListener('scroll', infiniteScroll);
 // refs.form.addEventListener('scroll', smoothScroll);
 
-// function infiniteScroll() {
-//   const documentRect = document.documentElement.getBoundingClientRect();
-//   if (documentRect.bottom < document.documentElement.clientHeight + 200) {
-//     console.log('Done');
-//     currentPage += 1;
-//     const value1 = refs.searchInput.value.trim();
-//     getImagesQuery(value1, currentPage).then(res => {
-//       renderMarkUp(res.data.hits);
-//     });
-//   }
-// }
+function infiniteScroll() {
+  const documentRect = document.documentElement.getBoundingClientRect();
+  // smoothScroll();
+  if (documentRect.bottom < document.documentElement.clientHeight + 150) {
+    // console.log('Done');
+    currentPage += 1;
+    // smoothScroll();
+
+    const value = refs.searchInput.value.trim();
+    getImages(value, currentPage).then(res => {
+      console.log('Загальна кількість картинок: ', res.data.total);
+
+      console.log('Довжина масиву одного запиту: ', res.data.hits.length);
+      renderMarkUp(res.data.hits);
+      if (res.data.hits.length < 40) {
+        return Notiflix.Notify.info('Финиш');
+      }
+      // smoothScroll();
+    });
+  }
+}
