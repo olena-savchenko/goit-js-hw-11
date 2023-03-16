@@ -1,6 +1,7 @@
 import './styles.css';
 import axios from 'axios';
 import Notiflix from 'notiflix';
+import debounce from 'lodash.debounce';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 
@@ -14,7 +15,7 @@ const refs = {
 };
 
 let currentPage = 1;
-refs.loadMoreBtn.style.display = 'none';
+// refs.loadMoreBtn.style.display = 'none';
 
 // обробник сабміту форми
 const onFormSubmit = event => {
@@ -28,7 +29,7 @@ const onFormSubmit = event => {
 
   // перевірка на
   if (inputValue === '') {
-    refs.loadMoreBtn.style.display = 'none';
+    // refs.loadMoreBtn.style.display = 'none';
     return Notiflix.Notify.info('Enter a search name!');
   }
 
@@ -41,11 +42,12 @@ const onFormSubmit = event => {
 
     // показуємо розмітку сторінки по даних запиту
     renderMarkUp(res.data.hits);
+
+    // викликаю функцію плавного скрола
+    smoothScroll();
+
     // виводимо повідомлення скільки всього знайшли зображень
     Notiflix.Notify.info(`Hooray! We found ${res.data.total} images.`);
-
-    // показуємо кнопку LoadMore
-    refs.loadMoreBtn.style.display = 'block';
   });
 };
 
@@ -76,7 +78,7 @@ function renderMarkUp(array) {
       }) => {
         return `<a class="gallery__link" href="${largeImageURL}">
                 <div class="photo-card">
-			            <img class="gallery__image" src="${webformatURL}" alt="${tags}"  loading="lazy"/>
+			            <img class="gallery__image" src="${webformatURL}" alt="${tags}" loading="lazy"/>
 			              <div class="info">
 		                  <p class="info-item">
 			                  <b>Likes</b><span class="likes">${likes}</span>
@@ -107,14 +109,32 @@ const lightbox = new SimpleLightbox('.gallery a', {
   captionDelay: 250,
 });
 
-// прослуховувач події click LoadMore
-refs.loadMoreBtn.addEventListener('click', onLoadMore);
-function onLoadMore() {
-  // З кожним наступним запитом, номер сторінки необхідно збільшити на 1
-  currentPage += 1;
+// обробник події плавного скрола
+document.addEventListener('scroll', smoothScroll);
+// функція плавного скрола
+function smoothScroll() {
+  const { height: cardHeight } = document
+    .querySelector('.gallery')
+    .firstElementChild.getBoundingClientRect();
 
-  const value1 = refs.searchInput.value.trim();
-  getImagesQuery(value1, currentPage).then(res => {
-    renderMarkUp(res.data.hits);
+  window.scrollBy({
+    top: cardHeight * 2,
+    behavior: 'smooth',
   });
 }
+
+// infinite scroll
+// window.addEventListener('scroll', infiniteScroll);
+// refs.form.addEventListener('scroll', smoothScroll);
+
+// function infiniteScroll() {
+//   const documentRect = document.documentElement.getBoundingClientRect();
+//   if (documentRect.bottom < document.documentElement.clientHeight + 200) {
+//     console.log('Done');
+//     currentPage += 1;
+//     const value1 = refs.searchInput.value.trim();
+//     getImagesQuery(value1, currentPage).then(res => {
+//       renderMarkUp(res.data.hits);
+//     });
+//   }
+// }
