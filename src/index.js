@@ -54,6 +54,7 @@ async function viewImgGallery(value, currentPage) {
 
     // якщо по запиту нічого не знайдено
     if (response.data.hits.length === 0) {
+      hideLoadMore();
       return Notiflix.Notify.info(
         'Sorry, there are no images matching your search query. Please try again!',
         optionsNotifix
