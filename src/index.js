@@ -51,10 +51,10 @@ async function viewImgGallery(value, currentPage) {
     const response = await getImages(value, currentPage); // виклик функції отримання зображень з pixabay
     const length = response.data.hits.length; //довжина масива данних за один запит
     const totalHits = response.data.total; // загальна кількість знайдених зображень
+    hideLoadMore();
 
     // якщо по запиту нічого не знайдено
     if (response.data.hits.length === 0) {
-      hideLoadMore();
       return Notiflix.Notify.info(
         'Sorry, there are no images matching your search query. Please try again!',
         optionsNotifix
