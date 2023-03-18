@@ -34,6 +34,7 @@ function onFormSubmit(event) {
   event.preventDefault();
 
   clearGallery();
+  hideLoadMore();
 
   const inputValue = refs.searchInput.value.trim();
 
@@ -49,9 +50,6 @@ function onFormSubmit(event) {
 async function viewImgGallery(value, currentPage) {
   try {
     const response = await getImages(value, currentPage); // виклик функції отримання зображень з pixabay
-    const length = response.data.hits.length; //довжина масива данних за один запит
-    const totalHits = response.data.total; // загальна кількість знайдених зображень
-    hideLoadMore();
 
     // якщо по запиту нічого не знайдено
     if (response.data.hits.length === 0) {
@@ -63,6 +61,14 @@ async function viewImgGallery(value, currentPage) {
 
     renderMarkUp(response.data.hits);
 
+    if (response.data.hits.length < 40 && currentPage === 1) {
+      hideLoadMore();
+      return Notiflix.Notify.success(
+        `Hooray! We found ${response.data.total} images.`,
+        optionsNotifix
+      );
+    }
+
     // якщо це перша сторінка
     if (currentPage === 1) {
       showLoadMore();
@@ -73,8 +79,8 @@ async function viewImgGallery(value, currentPage) {
       );
     }
 
-    // якщо кількість елементів менше ніж per_page = 40, то більше картинок немає
     if (response.data.hits.length < 40) {
+      // якщо кількість елементів менше ніж per_page = 40, то більше картинок немає
       hideLoadMore();
       return Notiflix.Notify.warning(
         "We're sorry, but you've reached the end of search results.",
