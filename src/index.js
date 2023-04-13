@@ -2,6 +2,8 @@ import './styles.css';
 import { getImages } from './pixabay-api';
 import { renderMarkUp } from './renderMarkUp';
 import Notiflix from 'notiflix';
+import OnlyScroll from 'only-scrollbar';
+import { smoothScroll } from './renderMarkUp';
 
 const refs = {
   form: document.querySelector('#search-form'),
@@ -20,6 +22,7 @@ const optionsNotifix = {
 
 refs.form.addEventListener('submit', onFormSubmit);
 refs.loadMoreBtn.addEventListener('click', onLoadMore);
+// const scroll = new OnlyScroll(document.querySelector('.gallery'));
 
 const showLoadMore = () => (refs.loadMoreBtn.style.display = 'block');
 const hideLoadMore = () => (refs.loadMoreBtn.style.display = 'none');
@@ -60,6 +63,7 @@ async function viewImgGallery(value, currentPage) {
     }
 
     renderMarkUp(response.data.hits);
+    // smoothScroll();
 
     if (response.data.hits.length < 40 && currentPage === 1) {
       hideLoadMore();
@@ -105,17 +109,20 @@ function onLoadMore() {
   viewImgGallery(value, currentPage);
 }
 
-/*=================== smooth and infinite scroll needs improvements ====================== */
-function smoothScroll() {
-  const { height: cardHeight } = document
-    .querySelector('.gallery')
-    .firstElementChild.getBoundingClientRect();
+// const scrollHandler = () => {
+//   const { height: cardHeight } = document
+//     .querySelector('.gallery')
+//     .firstElementChild.getBoundingClientRect();
 
-  window.scrollBy({
-    top: cardHeight * 2,
-    behavior: 'smooth',
-  });
-}
+//   window.scrollBy({
+//     top: cardHeight * 2,
+//     behavior: 'smooth',
+//   });
+//   /* ... */
+// };
+// scroll.addScrollListener(scrollHandler);
+
+/*=================== smooth and infinite scroll needs improvements ====================== */
 
 function infiniteScroll() {
   const documentRect = document.documentElement.getBoundingClientRect();
@@ -126,3 +133,78 @@ function infiniteScroll() {
     viewImgGallery(value, currentPage);
   }
 }
+
+function infiniteScroll() {
+  const gallery = document.querySelector('.gallery');
+  let page = 1;
+  let isLoading = false;
+  let hasMore = true;
+
+  window.addEventListener('scroll', () => {
+    if (!hasMore || isLoading) {
+      return;
+    }
+
+    const { scrollTop, clientHeight, scrollHeight } = document.documentElement;
+
+    if (scrollTop + clientHeight >= scrollHeight - 100) {
+      page++;
+      isLoading = true;
+
+      fetch(`/api/gallery?page=${page}`)
+        .then(response => response.json())
+        .then(data => {
+          isLoading = false;
+
+          if (data.length === 0) {
+            hasMore = false;
+            return;
+          }
+
+          data.forEach(photo => {
+            const photoCard = document.createElement('div');
+            photoCard.classList.add('photo-card');
+
+            const image = document.createElement('img');
+            image.src = photo.url;
+            image.alt = photo.title;
+            image.loading = 'lazy';
+
+            const info = document.createElement('div');
+            info.classList.add('info');
+
+            const likes = document.createElement('p');
+            likes.classList.add('info-item');
+            likes.innerHTML = `<b>Likes:</b> ${photo.likes}`;
+
+            const views = document.createElement('p');
+            views.classList.add('info-item');
+            views.innerHTML = `<b>Views:</b> ${photo.views}`;
+
+            const comments = document.createElement('p');
+            comments.classList.add('info-item');
+            comments.innerHTML = `<b>Comments:</b> ${photo.comments}`;
+
+            const downloads = document.createElement('p');
+            downloads.classList.add('info-item');
+            downloads.innerHTML = `<b>Downloads:</b> ${photo.downloads}`;
+
+            info.appendChild(likes);
+            info.appendChild(views);
+            info.appendChild(comments);
+            info.appendChild(downloads);
+
+            photoCard.appendChild(image);
+            photoCard.appendChild(info);
+
+            gallery.appendChild(photoCard);
+          });
+        })
+        .catch(error => {
+          isLoading = false;
+          console.error(error);
+        });
+    }
+  });
+}
+
